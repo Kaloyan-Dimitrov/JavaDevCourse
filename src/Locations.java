@@ -1,5 +1,11 @@
 import java.io.*;
-import java.util.*;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by timbuchalka on 2/04/2016.
@@ -11,77 +17,34 @@ public class  Locations implements Map<Integer, Location> {
 
 
     public static void main(String[] args) throws IOException {
-        try (RandomAccessFile rao = new RandomAccessFile("locations_rand.dat", "rwd")) {
-            rao.writeInt(locations.size());
-            int indexSize = locations.size() * 3 * Integer.BYTES;
-            int locationStart = (int) (indexSize + rao.getFilePointer() + Integer.BYTES);
-            long indexStart = rao.getFilePointer();
-
-            int startPointer = locationStart;
-            rao.seek(startPointer);
-
+        Path locPath = FileSystems.getDefault().getPath("locations.dat");
+        try (ObjectOutputStream locFile = new ObjectOutputStream((new BufferedOutputStream(Files.newOutputStream(locPath))))) {
             for(Location location: locations.values()) {
-                rao.writeInt(location.getLocationID());
-                rao.writeUTF(location.getDescription());
-                StringBuilder builder = new StringBuilder();
-                for(String direction: location.getExits().keySet()) {
-                    if(!direction.equalsIgnoreCase("Q")) {
-                        builder.append(direction);
-                        builder.append(",");
-                        builder.append(location.getExits().get(direction));
-                        builder.append(",");
-                    }
-                }
-
-                rao.writeUTF(builder.toString());
-
-                IndexRecord record = new IndexRecord(startPointer, (int) rao.getFilePointer() - startPointer);
-                index.put(location.getLocationID(), record);
-
-                startPointer = (int) rao.getFilePointer();
+                locFile.writeObject(location);
             }
-            rao.seek(indexStart);
-            for(Integer locationID: index.keySet()) {
-                rao.writeInt(locationID);
-                rao.writeInt(index.get(locationID).getStartByte());
-                rao.writeInt(index.get(locationID).getLength());
-            }
+        } catch(IOException e) {
+            System.out.println("IOException in main: " + e.getMessage());
         }
     }
 
     static {
-//        try (ObjectInputStream locFile = new ObjectInputStream(new BufferedInputStream(new FileInputStream("locations.dat")))) {
-//            boolean eof = false;
-//            System.out.println("starting reading");
-//            while(!eof) {
-//                try {
-//                    Location location = (Location) locFile.readObject();
-//                    locations.put(location.getLocationID(), location);
-//                } catch (EOFException e) {
-//                    eof = true;
-//                }
-//            }
-//        } catch(IOException e) {
-//            System.out.println("IO Exception" + e.getMessage());
-////            e.printStackTrace();
-//        } catch(ClassNotFoundException e) {
-//            System.out.println("class not found exception" + e.getMessage());
-//        }
-        try {
-            ra = new RandomAccessFile("locations_rand.dat", "rwd");
-            int numLocations = ra.readInt();
-            long locationStartPoint = ra.readInt();
-
-            while(ra.getFilePointer() < locationStartPoint) {
-                int locationId = ra.readInt();
-                int locationStart = ra.readInt();
-                int locationLength = ra.readInt();
-
-                IndexRecord record = new IndexRecord(locationStart, locationLength);
-                index.put(locationId, record);
+        Path locPath = FileSystems.getDefault().getPath("locations.dat");
+        try (ObjectInputStream locFile = new ObjectInputStream(new BufferedInputStream(Files.newInputStream(locPath)))) {
+            boolean eof = false;
+            while(!eof) {
+                try {
+                    Location location = (Location) locFile.readObject();
+                    locations.put(location.getLocationID(), location);
+                } catch(EOFException e) {
+                    eof = true;
+                }
             }
+        } catch(InvalidClassException e) {
+            System.out.println("InvalidClassException " + e.getMessage());
         } catch(IOException e) {
-            System.out.println("IOException in static initializer: " + e.getMessage());
+            System.out.println("IOException in static initializer block: " + e.getMessage());
+        } catch(ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException "  + e.getMessage());
         }
     }
 
