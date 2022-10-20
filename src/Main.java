@@ -1,23 +1,13 @@
 public class Main {
     public static void main(String[] args) {
-        System.out.println(ThreadColors.PURPLE + "Hello from the main thread");
-        Thread anotherThread = new AnotherThread();
-        new Thread() {
-            @Override
-            public void run() {
-                System.out.println(ThreadColors.GREEN + "new thread");
-            }
-        }.start();
-        anotherThread.start();
+        Countdown countdown = new Countdown();
 
-        Thread myRunnableThread = new Thread(new MyRunnable() {
-            @Override
-            public void run() {
-                System.out.println(ThreadColors.YELLOW + "Hello from my runnable thread");
-            }
-        });
-        myRunnableThread.start();
+        CountdownThread t1 = new CountdownThread(countdown);
+        t1.setName("Thread 1");
+        CountdownThread t2 = new CountdownThread(countdown);
+        t2.setName("Thread 2");
 
-        System.out.println(ThreadColors.PURPLE + "Hello again from the main thread");
+        t1.start();
+        t2.start();
     }
 }
