@@ -1,5 +1,7 @@
+import java.util.concurrent.locks.ReentrantLock;
+
 public class ThreadStarvation {
-    public static Object lock = new Object();
+    public static ReentrantLock lock = new ReentrantLock(true);
     public static void main(String[] args) {
         Thread t1 = new Thread(new Worker(ThreadColors.PURPLE), "Priority 10");
         Thread t2 = new Thread(new Worker(ThreadColors.RED), "Priority 8");
@@ -31,8 +33,11 @@ public class ThreadStarvation {
         @Override
         public void run() {
             for(int i = 0; i < 5; i ++) {
-                synchronized (lock) {
+                lock.lock();
+                try {
                     System.out.format(threadColor + "%s: runCount = %d\n", Thread.currentThread().getName(), runCount++);
+                } finally {
+                    lock.unlock();
                 }
             }
         }
