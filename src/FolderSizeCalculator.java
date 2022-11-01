@@ -45,6 +45,10 @@ public class FolderSizeCalculator {
 //                            Thread.currentThread().getName(),
 //                            startingPath.getFileName(),
 //                            fileSize);
+                System.out.format("pathToSize.put(Path.of(\"%s\"), new Pair(%dL, %s));\n",
+                startingPath.toString().replace("\\", "/"),
+                Files.size(startingPath), Files.isDirectory(startingPath));
+
                 return fileSize;
             } catch (IOException e) {
                 throw new RuntimeException(e);
