@@ -1,6 +1,5 @@
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,43 +10,42 @@ import java.util.concurrent.RecursiveTask;
 
 public class FolderSizeCalculator {
     private final ForkJoinPool commonPool;
-    public final Path folderPath;
+    private FileSystem fileSystem;
 
-    public FolderSizeCalculator(Path folderPath) {
-        commonPool = ForkJoinPool.commonPool();
-        this.folderPath = folderPath;
+    public FolderSizeCalculator() {
+        this.commonPool = ForkJoinPool.commonPool();
+        this.fileSystem = new FileSystem();
     }
 
-    public long calculate() {
-        return commonPool.invoke(new SizeCalculatorTask(folderPath));
+    public long calculate(Path folderPath) {
+        return commonPool.invoke(new SizeCalculatorTask(folderPath, fileSystem));
     }
+
 
     public static class SizeCalculatorTask extends RecursiveTask<Long> {
         private final Path startingPath;
-        public SizeCalculatorTask(Path startingPath) {
+        private final FileSystem fileSystem;
+
+        public SizeCalculatorTask(Path startingPath, FileSystem fileSystem) {
+            this.fileSystem = fileSystem;
             this.startingPath = startingPath;
         }
 
         @Override
         protected Long compute() {
-            if(Files.isDirectory(startingPath)) {
-//                System.out.format(ThreadColors.BLUE + "%s: %s\n",
-//                                Thread.currentThread().getName(),
-//                                startingPath.getFileName());
+            if(fileSystem.isDirectory(startingPath)) {
                 return ForkJoinTask.invokeAll(createSubtasks())
                         .stream()
                         .mapToLong(ForkJoinTask::join)
                         .sum();
             }
             try {
-                long fileSize = Files.size(startingPath);
-//                    System.out.format(ThreadColors.RESET + "%s: %s - %d\n",
-//                            Thread.currentThread().getName(),
-//                            startingPath.getFileName(),
-//                            fileSize);
-                System.out.format("pathToSize.put(Path.of(\"%s\"), new Pair(%dL, %s));\n",
-                startingPath.toString().replace("\\", "/"),
-                Files.size(startingPath), Files.isDirectory(startingPath));
+                System.out.println(Thread.currentThread().getName() + " calculating size of " + startingPath);
+                long fileSize = fileSystem.size(startingPath);
+                System.out.format(ThreadColors.RESET + "%s: %s - %d\n",
+                        Thread.currentThread().getName(),
+                        startingPath.getFileName(),
+                        fileSize);
 
                 return fileSize;
             } catch (IOException e) {
@@ -58,9 +56,9 @@ public class FolderSizeCalculator {
 
         private Collection<SizeCalculatorTask> createSubtasks() {
             final List<SizeCalculatorTask> fileTasks = new ArrayList<>();
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(startingPath)) {
+            try (DirectoryStream<Path> stream = fileSystem.newDirectoryStream(startingPath)) {
                 for (Path path : stream) {
-                    fileTasks.add(new SizeCalculatorTask(path));
+                    fileTasks.add(new SizeCalculatorTask(path, fileSystem));
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);
